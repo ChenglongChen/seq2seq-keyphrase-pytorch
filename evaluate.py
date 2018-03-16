@@ -42,7 +42,8 @@ def process_predseqs(pred_seqs, oov, id2word, opt):
         #         print('ERROR')
 
         # convert to words and remove the EOS token
-        processed_seq      = [id2word[x] if x < opt.vocab_size else oov[x - opt.vocab_size] for x in seq.sentence[:-1]]
+        seq_sentence_np = [int(x.cpu().data.numpy()) for x in seq.sentence]
+        processed_seq      = [id2word[x] if x < opt.vocab_size else oov[x - opt.vocab_size] for x in seq_sentence_np[:-1]]
         # print('processed_seq: ' + str(processed_seq))
 
         # print('%s - %s' % (str(seq.sentence[:-1]), str(processed_seq)))
