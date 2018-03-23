@@ -292,15 +292,15 @@ class KeyphraseDataLoader(object):
 
     def __init__(self, dataset, max_batch_example=5, max_batch_pair=1, shuffle=False, sampler=None, batch_sampler=None,
                  num_workers=0, collate_fn=default_collate, pin_memory=False, drop_last=False):
-        self.dataset     = dataset
+        self.dataset = dataset
         # used for generating one2many batches
-        self.num_trgs           = [len(e['trg']) for e in dataset.examples]
-        self.batch_size         = max_batch_pair
+        self.num_trgs = [len(e['trg']) for e in dataset.examples]
+        self.batch_size = max_batch_pair
         self.max_example_number = max_batch_example
-        self.num_workers        = num_workers
-        self.collate_fn         = collate_fn
-        self.pin_memory         = pin_memory
-        self.drop_last          = drop_last
+        self.num_workers = num_workers
+        self.collate_fn = collate_fn
+        self.pin_memory = pin_memory
+        self.drop_last = drop_last
 
         if batch_sampler is not None:
             if max_batch_pair > 1 or shuffle or sampler is not None or drop_last:
@@ -331,6 +331,7 @@ class KeyphraseDataLoader(object):
     def one2one_number(self):
         return sum(self.num_trgs)
 
+
 class One2ManyBatchSampler(object):
     """Wraps another sampler to yield a mini-batch of indices.
     Return batches of one2many pairs of which the sum of target sequences should not exceed the batch_size
@@ -354,11 +355,11 @@ class One2ManyBatchSampler(object):
     """
 
     def __init__(self, sampler, num_trgs, max_batch_example, max_batch_pair, drop_last):
-        self.sampler            = sampler
-        self.num_trgs           = num_trgs
-        self.max_batch_pair     = max_batch_pair
-        self.max_batch_example  = max_batch_example
-        self.drop_last          = drop_last
+        self.sampler = sampler
+        self.num_trgs = num_trgs
+        self.max_batch_pair = max_batch_pair
+        self.max_batch_example = max_batch_example
+        self.drop_last = drop_last
 
         batches = []
         batch = []
@@ -367,7 +368,7 @@ class One2ManyBatchSampler(object):
             number_trgs = sum([self.num_trgs[id] for id in batch])
             if len(batch) < self.max_batch_example and number_trgs + self.num_trgs[idx] < self.max_batch_pair:
                 batch.append(idx)
-            elif len(batch) == 0: # if the batch_size is very small, return a batch of only one data sample
+            elif len(batch) == 0:  # if the batch_size is very small, return a batch of only one data sample
                 batch.append(idx)
                 batches.append(batch)
                 # print('batch %d: #(src)=%d, #(trg)=%d \t\t %s' % (len(batches), len(batch), number_trgs, str(batch)))
@@ -381,7 +382,7 @@ class One2ManyBatchSampler(object):
         if len(batch) > 0 and not self.drop_last:
             batches.append(batch)
 
-        self.batches         = batches
+        self.batches = batches
         self.final_num_batch = len(batches)
 
     def __iter__(self):
@@ -389,4 +390,3 @@ class One2ManyBatchSampler(object):
 
     def __len__(self):
         return self.final_num_batch
-

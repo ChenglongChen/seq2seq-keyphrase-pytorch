@@ -8,7 +8,7 @@ import time
 
 def init_logging(logger_name, log_file, stdout=False):
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(module)s: %(message)s',
-                                  datefmt='%m/%d/%Y %H:%M:%S'   )
+                                  datefmt='%m/%d/%Y %H:%M:%S')
 
     print('Making log output file: %s' % log_file)
     print(log_file[: log_file.rfind(os.sep)])
@@ -30,6 +30,7 @@ def init_logging(logger_name, log_file, stdout=False):
         logger.addHandler(ch)
 
     return logger
+
 
 def model_opts(parser):
     """
@@ -82,7 +83,7 @@ def model_opts(parser):
                              "embeddings) to the decoder.")
 
     parser.add_argument('-bidirectional',
-                        action = "store_true",
+                        action="store_true",
                         help="whether the encoder is bidirectional")
 
     # Attention options
@@ -105,7 +106,7 @@ def model_opts(parser):
                              "embeddings) to the decoder.")
 
     parser.add_argument('-reuse_copy_attn', action="store_true",
-                       help="Reuse standard attention for copy (see See et al.)")
+                        help="Reuse standard attention for copy (see See et al.)")
 
     parser.add_argument('-copy_gate', action="store_true",
                         help="A gate controling the flow from generative model and copy model (see See et al.)")
@@ -126,6 +127,7 @@ def model_opts(parser):
     # Cascading model options
     parser.add_argument('-cascading_model', action="store_true",
                         help='Train a copy model.')
+
 
 def preprocess_opts(parser):
     # Dictionary Options
@@ -157,11 +159,12 @@ def preprocess_opts(parser):
     parser.add_argument('-shuffle', type=int, default=1,
                         help="Shuffle data")
     parser.add_argument('-lower', default=True,
-                        action = 'store_true', help='lowercase data')
+                        action='store_true', help='lowercase data')
 
     # Options most relevant to summarization
     parser.add_argument('-dynamic_dict', default=True,
                         action='store_true', help="Create dynamic dictionaries (for copy)")
+
 
 def train_opts(parser):
     # Model loading/saving options
@@ -239,7 +242,7 @@ def train_opts(parser):
                         help='A scaling factor to merge the loss of ML and RL parts: L_mixed = γ * L_rl + (1 − γ) * L_ml'
                              'The γ used by Metamind is 0.9984 in "A DEEP REINFORCED MODEL FOR ABSTRACTIVE SUMMARIZATION"'
                              'The α used by Google is 0.017 in "Google Translation": O_Mixed(θ) = α ∗ O_ML(θ) + O_RL(θ)'
-                         )
+                        )
 
     # Teacher Forcing and Scheduled Sampling
     parser.add_argument('-must_teacher_forcing', action="store_true",
@@ -308,10 +311,11 @@ def train_opts(parser):
     parser.add_argument('-beam_search_batch_workers', type=int, default=4,
                         help='Number of workers for generating batches')
 
-    parser.add_argument('-beam_size',  type=int, default=16,
+    parser.add_argument('-beam_size', type=int, default=16,
                         help='Beam size')
     parser.add_argument('-max_sent_length', type=int, default=5,
                         help='Maximum sentence length.')
+
 
 def predict_opts(parser):
     parser.add_argument('-must_appear_in_src', action="store_true", default="True",
