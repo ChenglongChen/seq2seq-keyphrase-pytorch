@@ -76,6 +76,20 @@ def torch_model_summarize(model, show_weights=True, show_parameters=True):
     return tmpstr
 
 
+def reorder_list_by_idx(inp, indices):
+    return [inp[idx] for idx in indices]
+
+
+def reorder_dict(d, indices):
+    res_dict = {}
+    for k, v in d.items():
+        if not isinstance(v, np.ndarray):
+            res_dict[k] = reorder_list_by_idx(v, indices)
+        else:
+            res_dict[k] = v.take(indices, axis=0)
+    return res_dict
+
+
 def shuffle_data_dict(data_dict):
     '''
     Shuffle each data array in the named array dict.
@@ -83,10 +97,7 @@ def shuffle_data_dict(data_dict):
     '''
     ary_len = list(data_dict.values())[0].shape[0]
     rand_perm = np.random.permutation(ary_len)
-    for k, v in data_dict.items():
-        # permute input_dict[k]
-        data_dict[k] = v.take(rand_perm, axis=0)
-    return data_dict
+    return reorder_dict(data_dict, rand_perm)
 
 
 def max_len(list_of_list):
@@ -197,6 +208,8 @@ def random_generator(data_dict, input_keys, output_keys, batch_size, bucket_size
         bucket_size = batch_size * 100
     sample_count = None
     for k, v in data_dict.items():
+        if not isinstance(v, np.ndarray):
+            continue
         if sample_count is None:
             sample_count = v.shape[0]
         if not (sample_count == v.shape[0]):
@@ -224,7 +237,7 @@ def random_generator(data_dict, input_keys, output_keys, batch_size, bucket_size
             bucket_end = min(bucket_end, sample_count)
             current_bucket_size = bucket_end - bucket_start
             bucket_idx = np.arange(bucket_start, bucket_end)
-            bucket_dict = {k: v.take(bucket_idx, axis=0) for k, v in data_dict.items()}
+            bucket_dict = reorder_dict(data_dict, bucket_idx)
 
             if sort_by is not None:
                 non_zero = bucket_dict[sort_by]
@@ -232,7 +245,7 @@ def random_generator(data_dict, input_keys, output_keys, batch_size, bucket_size
                     non_zero = np.max(non_zero, axis=-1)
                 pad_counts = np.sum((non_zero == 0), axis=1)
                 sort_idx = np.argsort(pad_counts)
-                bucket_dict = {k: v.take(sort_idx, axis=0) for k, v in bucket_dict.items()}
+                bucket_dict = reorder_dict(bucket_dict, sort_idx)
 
             batches_per_bucket = current_bucket_size // batch_size
             if current_bucket_size % batch_size > 0:
@@ -246,7 +259,7 @@ def random_generator(data_dict, input_keys, output_keys, batch_size, bucket_size
                     continue
                 batch_end = min(batch_end, current_bucket_size)
                 batch_idx = np.arange(batch_start, batch_end)
-                batch_dict = {k: v.take(batch_idx, axis=0) for k, v in bucket_dict.items()}
+                batch_dict = reorder_dict(bucket_dict, batch_idx)
                 if trim_function is not None:
                     batch_dict = trim_function(batch_dict)
                 batch_dict['input_source_char'] = add_char_level_inputs(batch_dict['input_source'], id2word, char2id)
