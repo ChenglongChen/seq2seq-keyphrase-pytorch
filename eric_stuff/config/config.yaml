@@ -4,7 +4,6 @@ general:
   cuda_seed: 42
   data_path: "data/kp20k/"
 
-
 scheduling:
   batch_size: 64
   valid_batch_size: 64

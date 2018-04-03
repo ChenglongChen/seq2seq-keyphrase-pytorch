@@ -79,7 +79,7 @@ def train_teacher_forcing(model_config):
 
     # load model, if any
     try:
-        save_f = open(model_config['dataset']['model_save_path'], 'rb')
+        save_f = open(model_config['scheduling']['model_checkpoint_path'], 'rb')
         _model = torch.load(save_f)
         # Run on test data.
         print("loading best model------------------------------------------------------------------\n")
@@ -137,6 +137,9 @@ def train_teacher_forcing(model_config):
                                                                                                                                                            math.exp(batch_loss) if batch_loss < 13. else np.inf,
                                                                                                                                                            learning_rate))
                     pbar.update(1)
+
+            with open(model_config['scheduling']['model_checkpoint_path'], 'wb') as save_f:
+                torch.save(_model, save_f)
 
     #         # eval on valid set
     #         val_loss, val_ppl = evaluate(model=_model, data_generator=valid_batch_generator,
