@@ -6,8 +6,8 @@ general:
 
 
 scheduling:
-  batch_size: 32
-  valid_batch_size: 32
+  batch_size: 64
+  valid_batch_size: 64
   epoch: 10000
   model_checkpoint_path: 'saved_models/model.pt'
 
