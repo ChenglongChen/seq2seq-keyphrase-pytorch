@@ -8,8 +8,8 @@ random.seed(42)
 
 
 def build_char_vocab(word_list):
-    char2id = {}
-    id2char = []
+    char2id = {"<pad>": 0, "<s>": 1, "</s>": 2, "<unk>": 3}
+    id2char = ["<pad>", "<s>", "</s>", "<unk>"]
     for word in word_list:
         chars = list(word)
         for ch in chars:
