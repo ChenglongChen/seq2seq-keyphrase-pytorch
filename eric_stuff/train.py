@@ -8,7 +8,7 @@ from os.path import join as pjoin
 import numpy as np
 from tqdm import tqdm
 from helpers.datasets import load_dataset
-from helpers.helper import print_data_samples, torch_model_summarize, random_generator, trim
+from helpers.helper import print_data_samples, torch_model_summarize, random_generator, trim, generator_queue
 from helpers.model import CascadingGenerator, StandardNLL
 
 wait_time = 0.01  # in seconds
@@ -20,8 +20,6 @@ def train_teacher_forcing(model_config):
     _, id2word, char2id, id2char, train_data, valid_data, test_data = load_dataset(data_path + "kp20k")
     id2word = id2word[:50000]
     print("there're {} words in word vocab, {} items in char vocab, train data size {}, valid data size {}, test data size {}.".format(len(id2word), len(id2char), len(train_data['input_source']), len(valid_data['input_source']), len(test_data['input_source'])))
-    print(id2word[:10])
-    exit(0)
     if False:
         print('----------------------------------  print some data for debugging purpose')
         print_data_samples(train_data, 22, 35, id2word)

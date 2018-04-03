@@ -1,6 +1,12 @@
 # coding=utf-8
 import numpy as np
 import torch
+try:
+    import queue
+except ImportError:
+    import Queue as queue
+import threading
+import time
 
 
 def print_data_samples(dataset, head, tail, id2word):
@@ -289,3 +295,35 @@ def add_char_level_inputs(input_batch=None, id2word=None, char2id=None):
     if flag:
         char_matrix = np.reshape(char_matrix, (shape0, shape1) + char_matrix.shape[1:])
     return char_matrix
+
+
+def generator_queue(generator, max_q_size=10, wait_time=0.05, nb_worker=1):
+    '''Builds a threading queue out of a data generator.
+    Used in `fit_generator`, `evaluate_generator`.
+    '''
+    q = queue.Queue()
+    _stop = threading.Event()
+
+    def data_generator_task():
+        while not _stop.is_set():
+            try:
+                if q.qsize() < max_q_size:
+                    try:
+                        generator_output = next(generator)
+                    except ValueError:
+                        continue
+                    q.put(generator_output)
+                else:
+                    time.sleep(wait_time)
+            except Exception:
+                _stop.set()
+                raise
+
+    generator_threads = [threading.Thread(target=data_generator_task)
+                         for _ in range(nb_worker)]
+
+    for thread in generator_threads:
+        thread.daemon = True
+        thread.start()
+
+    return q, _stop
