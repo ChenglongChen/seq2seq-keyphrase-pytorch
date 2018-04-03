@@ -224,9 +224,9 @@ class CascadingGenerator(torch.nn.Module):
 
     def _embed(self, _input_words, _input_chars):
         # batch x time
-        word_embedding, word_mask = self.word_embedding.forward(_input_words)  # batch (x cmd) x time x emb
-        char_embedding, char_mask = self.char_embedding.forward(_input_chars)  # batch (x cmd) x time x char_len x emb
-        _, char_embedding, _ = self.char_encoder.forward(char_embedding, char_mask)  # batch (x cmd) x time x emb
+        word_embedding, word_mask = self.word_embedding.forward(_input_words)  # batch x time x emb
+        char_embedding, char_mask = self.char_embedding.forward(_input_chars)  # batch x time x char_len x emb
+        _, char_embedding, _ = self.char_encoder.forward(char_embedding, char_mask)  # batch x time x emb
         embedding = torch.cat([word_embedding, char_embedding], -1)
         return embedding, word_mask
 
@@ -238,7 +238,7 @@ class CascadingGenerator(torch.nn.Module):
         # encode
         history_embeddings, history_mask = self._embed(input_history, input_history_char)  # batch x time x emb
         _, history_encoding, _ = self.encoder.forward(history_embeddings, history_mask)  # batch x hid_enc
-        history_info = self.history_info_integrator.forward(history_encoding)  # batch x hid
+        history_info = self.history_info_integrator.forward([history_encoding])  # batch x hid
         return history_info
 
     def _encode(self, input_source, input_source_char):

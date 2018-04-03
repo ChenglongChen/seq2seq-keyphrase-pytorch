@@ -109,8 +109,8 @@ def train_teacher_forcing(model_config):
                             break
                         else:
                             time.sleep(wait_time)
-                    input_source, input_target, input_action, input_prev_target, input_source_char, input_target_char, input_prev_target_char,\
-                        output_target, output_target_mask = generator_output
+                    input_source, input_target, input_prev_target, input_source_char, input_target_char, input_prev_target_char,\
+                        output_target, output_target_mask, local_dict = generator_output
 
                     optimizer.zero_grad()
                     _model.zero_grad()

@@ -68,7 +68,7 @@ class Embedding(torch.nn.Module):
         self.enable_cuda = enable_cuda
         self.vocab_oov_ext_size = vocab_oov_ext_size
         self.dropout = torch.nn.Dropout(p=dropout_rate)
-        self.embedding_layer = torch.nn.Embedding(self.vocab_size, self.embedding_size, padding_idx=0)
+        self.embedding_layer = torch.nn.Embedding(self.vocab_size + self.vocab_oov_ext_size, self.embedding_size, padding_idx=0)
         self.init_weights()
 
     def init_weights(self):
@@ -100,17 +100,8 @@ class Embedding(torch.nn.Module):
         mask = torch.ne(x, 0).float()
         return mask
 
-    def embed(self, words):
-        masked_embed_weight = self.embedding_layer.weight
-        padding_idx = self.embedding_layer.padding_idx
-        X = self.embedding_layer._backend.Embedding.apply(
-            words, masked_embed_weight,
-            padding_idx, self.embedding_layer.max_norm, self.embedding_layer.norm_type,
-            self.embedding_layer.scale_grad_by_freq, self.embedding_layer.sparse)
-        return X
-
     def forward(self, x):
-        embeddings = self.embed(x)
+        embeddings = self.embedding_layer.forward(x)
         # apply standard dropout
         embeddings = self.dropout(embeddings)  # batch x time x emb
         mask = self.compute_mask(x)  # batch x time
