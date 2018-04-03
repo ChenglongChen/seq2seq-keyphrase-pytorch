@@ -2,7 +2,7 @@ import logging
 import numpy as np
 
 import torch
-
+from helpers.helper import to_pt
 from helpers.layers import Embedding, TimeDistributedEmbedding
 from helpers.layers import TimeDistributedRNN
 from helpers.layers import MergeDistributions
@@ -231,10 +231,13 @@ class CascadingGenerator(torch.nn.Module):
         return embedding, word_mask
 
     def get_history_info(self, input_history, input_history_char):
+        input_history_np = input_history.cpu().data.numpy()
+        if np.sum(input_history_np) == 0:
+            return to_pt(np.zeros((input_history_np.shpae[0], self.encoder_rnn_hidden_size[-1])), enable_cuda=self.enable_cuda, type='float')
+
         # encode
         history_embeddings, history_mask = self._embed(input_history, input_history_char)  # batch x time x emb
         _, history_encoding, _ = self.encoder.forward(history_embeddings, history_mask)  # batch x hid_enc
-
         history_info = self.history_info_integrator.forward(history_encoding)  # batch x hid
         return history_info
 

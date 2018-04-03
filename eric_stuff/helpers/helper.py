@@ -354,3 +354,16 @@ def generator_queue(generator, max_q_size=10, wait_time=0.05, nb_worker=1):
         thread.start()
 
     return q, _stop
+
+
+def to_pt(np_matrix, enable_cuda=False, type='long'):
+    if type == 'long':
+        if enable_cuda:
+            return torch.autograd.Variable(torch.from_numpy(np_matrix).type(torch.LongTensor).cuda())
+        else:
+            return torch.autograd.Variable(torch.from_numpy(np_matrix).type(torch.LongTensor))
+    elif type == 'float':
+        if enable_cuda:
+            return torch.autograd.Variable(torch.from_numpy(np_matrix).type(torch.FloatTensor).cuda())
+        else:
+            return torch.autograd.Variable(torch.from_numpy(np_matrix).type(torch.FloatTensor))

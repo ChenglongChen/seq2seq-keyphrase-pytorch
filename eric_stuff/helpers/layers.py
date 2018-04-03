@@ -110,7 +110,6 @@ class Embedding(torch.nn.Module):
         return X
 
     def forward(self, x):
-        # drop entire word embeddings
         embeddings = self.embed(x)
         # apply standard dropout
         embeddings = self.dropout(embeddings)  # batch x time x emb
