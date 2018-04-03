@@ -60,12 +60,13 @@ def train_teacher_forcing(model_config):
 
     input_keys = ['input_source', 'input_target', 'input_prev_target', 'input_source_char', 'input_target_char', 'input_prev_target_char']
     output_keys = ['output_target', 'output_target_mask']
-    train_batch_generator = random_generator(data_dict=train_data, input_keys=input_keys, output_keys=output_keys, batch_size=batch_size,
+    special_keys = ['local_oov_dict']
+    train_batch_generator = random_generator(data_dict=train_data, input_keys=input_keys, output_keys=output_keys, special_keys=special_keys, batch_size=batch_size,
                                              trim_function=trim, sort_by='input_source',
                                              id2word=id2word, char2id=char2id,
                                              enable_cuda=enable_cuda)
 
-    valid_batch_generator = random_generator(data_dict=valid_data, input_keys=input_keys, output_keys=output_keys, batch_size=valid_batch_size,
+    valid_batch_generator = random_generator(data_dict=valid_data, input_keys=input_keys, output_keys=output_keys, special_keys=special_keys, batch_size=valid_batch_size,
                                              trim_function=trim, sort_by='input_source',
                                              id2word=id2word, char2id=char2id,
                                              enable_cuda=enable_cuda)

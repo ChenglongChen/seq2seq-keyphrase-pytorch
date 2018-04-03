@@ -202,7 +202,7 @@ def trim(batch_dict):
     return batch_dict
 
 
-def random_generator(data_dict, input_keys, output_keys, batch_size, bucket_size=-1, sort_by=None, trim_function=None,
+def random_generator(data_dict, input_keys, output_keys, special_keys, batch_size, bucket_size=-1, sort_by=None, trim_function=None,
                      id2word=None, char2id=None, random_shuffle=True, enable_cuda=False):
     if bucket_size == -1:
         bucket_size = batch_size * 100
@@ -262,21 +262,23 @@ def random_generator(data_dict, input_keys, output_keys, batch_size, bucket_size
                 batch_dict = reorder_dict(bucket_dict, batch_idx)
                 if trim_function is not None:
                     batch_dict = trim_function(batch_dict)
-                batch_dict['input_source_char'] = add_char_level_inputs(batch_dict['input_source'], id2word, char2id)
-                batch_dict['input_target_char'] = add_char_level_inputs(batch_dict['input_target'], id2word, char2id)
-                batch_dict['input_prev_target_char'] = add_char_level_inputs(batch_dict['input_prev_target'], id2word, char2id)
+                batch_dict['input_source_char'] = add_char_level_inputs(batch_dict['input_source'], id2word, char2id, batch_dict['local_oov_dict'])
+                batch_dict['input_target_char'] = add_char_level_inputs(batch_dict['input_target'], id2word, char2id, batch_dict['local_oov_dict'])
+                batch_dict['input_prev_target_char'] = add_char_level_inputs(batch_dict['input_prev_target'], id2word, char2id, batch_dict['local_oov_dict'])
 
                 if enable_cuda:
                     batch_data = [torch.autograd.Variable(torch.from_numpy(batch_dict[k]).type(torch.LongTensor).cuda()) for k in input_keys] +\
-                                 [torch.autograd.Variable(torch.from_numpy(batch_dict[k]).type(torch.LongTensor).cuda()) for k in output_keys]
+                                 [torch.autograd.Variable(torch.from_numpy(batch_dict[k]).type(torch.LongTensor).cuda()) for k in output_keys] +\
+                                 [batch_dict[k] for k in special_keys]
                 else:
                     batch_data = [torch.autograd.Variable(torch.from_numpy(batch_dict[k]).type(torch.LongTensor)) for k in input_keys] +\
-                                 [torch.autograd.Variable(torch.from_numpy(batch_dict[k]).type(torch.LongTensor)) for k in output_keys]
+                                 [torch.autograd.Variable(torch.from_numpy(batch_dict[k]).type(torch.LongTensor)) for k in output_keys] +\
+                                 [batch_dict[k] for k in special_keys]
                 yield batch_data
 
 
-def add_char_level_inputs(input_batch=None, id2word=None, char2id=None):
-    if input_batch is None or id2word is None or char2id is None:
+def add_char_level_inputs(input_batch=None, id2word=None, char2id=None, oov_dict=None):
+    if input_batch is None or id2word is None or char2id is None or oov_dict is None:
         return None
     flag = False
     input_batch = input_batch.astype('int32')
@@ -287,8 +289,17 @@ def add_char_level_inputs(input_batch=None, id2word=None, char2id=None):
         flag = True
 
     word_set = set()
-    for item in input_batch:
-        word_set |= set([id2word[w] for w in item])
+    local_id2word = []
+    for item, local_dict in zip(input_batch, oov_dict):
+        oov_id2word = {v: k for k, v in local_dict.items()}
+        for w_id in item:
+            if w_id < len(id2word):
+                word_set.add(id2word[w_id])
+            else:
+                assert w_id in oov_id2word
+                word_set.add(oov_id2word[w_id])
+        local_id2word.append(oov_id2word)
+
     word_set = list(word_set)
     max_char_in_word = max(map(len, word_set))
 
@@ -298,7 +309,10 @@ def add_char_level_inputs(input_batch=None, id2word=None, char2id=None):
             if input_batch[i][j] == 0:
                 continue
             # it's actual word
-            _w = id2word[input_batch[i][j]]
+            if input_batch[i][j] < len(id2word):
+                _w = id2word[input_batch[i][j]]
+            else:
+                _w = local_id2word[i][input_batch[i][j]]
             _w = _w.lower()
             for k in range(len(_w)):
                 try:
