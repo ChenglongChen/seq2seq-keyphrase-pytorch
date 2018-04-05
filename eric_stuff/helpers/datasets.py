@@ -2,7 +2,7 @@
 import random
 import numpy as np
 import torch
-from helpers.helper import pad_sequences
+from helpers.helper import pad_sequences, pad_sequences_of_sequences
 np.random.seed(42)
 random.seed(42)
 
@@ -20,11 +20,15 @@ def build_char_vocab(word_list):
 
 
 def list_to_nparray(data):
-    # only supports 2d lists
+    # only supports 2d and 3d lists
     assert isinstance(data, list) and len(data) > 0
     assert isinstance(data[0], list) and len(data[0]) > 0
-    # 2d list, e.g., batch x source_len
-    res = pad_sequences(data, padding='post').astype('int32')
+    if isinstance(data[0][0], list):
+        # 3d list, e.g., batch x target_amount x target_len
+        res = pad_sequences_of_sequences(data).astype('int32')
+    else:
+        # 2d list, e.g., batch x source_len
+        res = pad_sequences(data, padding='post').astype('int32')
     return res
 
 
@@ -36,8 +40,11 @@ def swap_0_1(thing):
     return thing
 
 
-def list_of_dict_to_dict_of_nparray(data_list):
-    # this funcion also swaps 0 and 1s
+def make_teacher_forcing_data(data_list):
+    # This funcion also swaps 0 and 1s
+    # Note that due to the random sampling, this function
+    # makes the dataset several times larger than it was
+    this_times_larger = 10
 
     source, prev_target, target, oov_dict = [], [], [], []
     for item in data_list:
@@ -46,7 +53,7 @@ def list_of_dict_to_dict_of_nparray(data_list):
         tgt = [np.array(t) for t in item["trg_copy"]]
         tgt = [swap_0_1(t).tolist() for t in tgt]
 
-        sample_this_many_times = min(10, len(tgt))
+        sample_this_many_times = min(this_times_larger, len(tgt))
         for i in range(sample_this_many_times):
             perm = np.random.permutation(len(tgt))
             _tgt = tgt[perm[0]]
@@ -84,6 +91,27 @@ def list_of_dict_to_dict_of_nparray(data_list):
     return res
 
 
+def make_free_running_data(data_list):
+    # this funcion also swaps 0 and 1s
+    source, target, oov_dict = [], [], []
+    for item in data_list:
+        src = np.array(item["src_oov"])
+        src = swap_0_1(src).tolist()
+        tgt = [np.array(t) for t in item["trg_copy"]]
+        tgt = [swap_0_1(t).tolist() for t in tgt]
+
+        source.append(src)
+        target.append(tgt)
+        oov_dict.append(item["oov_dict"])
+
+    source = list_to_nparray(source)
+    target = list_to_nparray(target)
+    res = {'input_source': source,
+           'output_target': target,
+           'local_oov_dict': oov_dict}
+    return res
+
+
 def load_dataset(path):
     # read vocab, train/valid/test set
     word2id, id2word, _ = torch.load(path + ".vocab.pt", 'wb')
@@ -108,7 +136,8 @@ def load_dataset(path):
     word2id[bos_token] = 1
     word2id[pad_token] = 0
 
-    train_data = list_of_dict_to_dict_of_nparray(train)
-    valid_data = list_of_dict_to_dict_of_nparray(valid)
-    test_data = list_of_dict_to_dict_of_nparray(test)
-    return word2id, new_id2word, char2id, id2char, train_data, valid_data, test_data
+    train_data = make_teacher_forcing_data(train)
+    teacher_forcing_valid_data = make_teacher_forcing_data(valid)
+    free_running_valid_data = make_free_running_data(valid)
+    test_data = make_free_running_data(test)
+    return word2id, new_id2word, char2id, id2char, train_data, teacher_forcing_valid_data, free_running_valid_data, test_data

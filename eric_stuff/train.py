@@ -10,6 +10,7 @@ from tqdm import tqdm
 from helpers.datasets import load_dataset
 from helpers.helper import print_data_samples, torch_model_summarize, random_generator, trim, generator_queue
 from helpers.model import CascadingGenerator, StandardNLL
+from helpers.evaluation import eval_teacher_forcing
 
 wait_time = 0.01  # in seconds
 
@@ -17,9 +18,9 @@ wait_time = 0.01  # in seconds
 def train_teacher_forcing(model_config):
 
     data_path = model_config['general']['data_path']
-    _, id2word, char2id, id2char, train_data, valid_data, test_data = load_dataset(data_path + "kp20k")
+    _, id2word, char2id, id2char, train_data, teacher_forcing_valid_data, free_running_valid_data, test_data = load_dataset(data_path + "kp20k")
     id2word = id2word[:50000]
-    print("there're {} words in word vocab, {} items in char vocab, train data size {}, valid data size {}, test data size {}.".format(len(id2word), len(id2char), len(train_data['input_source']), len(valid_data['input_source']), len(test_data['input_source'])))
+    print("there're {} words in word vocab, {} items in char vocab, train data size {}, valid data size {} / {}, test data size {}.".format(len(id2word), len(id2char), len(train_data['input_source']), len(teacher_forcing_valid_data['input_source']), len(free_running_valid_data['input_source']), len(test_data['input_source'])))
     if False:
         print('----------------------------------  print some data for debugging purpose')
         print_data_samples(train_data, 22, 35, id2word)
@@ -66,7 +67,7 @@ def train_teacher_forcing(model_config):
                                              id2word=id2word, char2id=char2id,
                                              enable_cuda=enable_cuda)
 
-    valid_batch_generator = random_generator(data_dict=valid_data, input_keys=input_keys, output_keys=output_keys, special_keys=special_keys, batch_size=valid_batch_size,
+    valid_batch_generator = random_generator(data_dict=teacher_forcing_valid_data, input_keys=input_keys, output_keys=output_keys, special_keys=special_keys, batch_size=valid_batch_size,
                                              trim_function=trim, sort_by='input_source',
                                              id2word=id2word, char2id=char2id,
                                              enable_cuda=enable_cuda)
@@ -81,17 +82,12 @@ def train_teacher_forcing(model_config):
     try:
         save_f = open(model_config['scheduling']['model_checkpoint_path'], 'rb')
         _model = torch.load(save_f)
-        # Run on test data.
         print("loading best model------------------------------------------------------------------\n")
-        # test_loss, test_ppl = evaluate(model=_model, data_generator=valid_batch_generator,
-        #                                data_size=valid_data['input_description'].shape[0], criterion=criterion,
-        #                                batch_size=valid_batch_size)
-
-        # soft_test_f1, hard_test_f1 = evaluate_free_running(model=_model, data_generator=valid_batch_generator, data_size=valid_data['input_description'].shape[0],
-        #                                                    id2word=word_vocab, char2id=char2id, batch_size=valid_batch_size, enable_cuda=enable_cuda)
-        # print("------------------------------------------------------------------------------------\n")
-        # print("loss=%.5f, ppl=%.5f, soft f1=%.5f, hard f1=%.5f" % (test_loss, test_ppl, soft_test_f1, hard_test_f1))
-
+        # eval on valid set
+        val_loss, val_ppl = eval_teacher_forcing(model=_model, batch_generator=valid_batch_generator,
+                                                 number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
+                                                 criterion=criterion)
+        print("In teacher forcing evaluation, loss=%.5f, ppl=%.5f" % (val_loss, val_ppl))
     except:
         pass
 
@@ -138,34 +134,31 @@ def train_teacher_forcing(model_config):
                                                                                                                                                            learning_rate))
                     pbar.update(1)
 
-            with open(model_config['scheduling']['model_checkpoint_path'], 'wb') as save_f:
-                torch.save(_model, save_f)
-
-    #         # eval on valid set
-    #         val_loss, val_ppl = evaluate(model=_model, data_generator=valid_batch_generator,
-    #                                      data_size=valid_data['input_description'].shape[0], criterion=criterion,
-    #                                      batch_size=valid_batch_size)
-    #         soft_val_f1, hard_val_f1 = evaluate_free_running(model=_model, data_generator=valid_batch_generator, data_size=valid_data['input_description'].shape[0],
-    #                                                          id2word=word_vocab, char2id=char2id, batch_size=valid_batch_size, enable_cuda=enable_cuda)
-    #         print("epoch=%d, valid loss=%.5f, valid ppl=%.5f, soft f1=%.5f, hard f1=%.5f, lr=%.6f" % (epoch, val_loss, val_ppl, soft_val_f1, hard_val_f1, learning_rate))
-    #         # Save the model if the validation loss is the best we've seen so far.
-    #         if not best_val_ppl or val_ppl < best_val_ppl:
-    #             with open(model_config['dataset']['model_save_path'], 'wb') as save_f:
-    #                 torch.save(_model, save_f)
-    #             best_val_ppl = val_ppl
-    #             be_patient = 0
-    #         else:
-    #             if epoch >= model_config['optimizer']['learning_rate_decay_from_this_epoch']:
-    #                 if be_patient >= model_config['optimizer']['learning_rate_decay_patience']:
-    #                     if learning_rate * model_config['optimizer']['learning_rate_decay_ratio'] > model_config['optimizer']['learning_rate_cut_lowerbound'] * model_config['optimizer']['learning_rate']:
-    #                         # Anneal the learning rate if no improvement has been seen in the validation dataset.
-    #                         print('cutting learning rate from %.5f to %.5f' % (learning_rate, learning_rate * model_config['optimizer']['learning_rate_decay_ratio']))
-    #                         learning_rate *= model_config['optimizer']['learning_rate_decay_ratio']
-    #                         for param_group in optimizer.param_groups:
-    #                             param_group['lr'] = learning_rate
-    #                     else:
-    #                         print('learning rate %.5f reached lower bound' % (learning_rate))
-    #                 be_patient += 1
+            # eval on valid set
+            val_loss, val_ppl = eval_teacher_forcing(model=_model, batch_generator=valid_batch_generator,
+                                                     number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
+                                                     criterion=criterion)
+            # soft_val_f1, hard_val_f1 = evaluate_free_running(model=_model, data_generator=valid_batch_generator, data_size=valid_data['input_description'].shape[0],
+            #                                                  id2word=word_vocab, char2id=char2id, batch_size=valid_batch_size, enable_cuda=enable_cuda)
+            print("epoch=%d, in teacher forcing evaluation, loss=%.5f, ppl=%.5f" % (epoch, val_loss, val_ppl))
+            # Save the model if the validation loss is the best we've seen so far.
+            if not best_val_ppl or val_ppl < best_val_ppl:
+                with open(model_config['dataset']['model_save_path'], 'wb') as save_f:
+                    torch.save(_model, save_f)
+                best_val_ppl = val_ppl
+                be_patient = 0
+            else:
+                if epoch >= model_config['optimizer']['learning_rate_decay_from_this_epoch']:
+                    if be_patient >= model_config['optimizer']['learning_rate_decay_patience']:
+                        if learning_rate * model_config['optimizer']['learning_rate_decay_ratio'] > model_config['optimizer']['learning_rate_cut_lowerbound'] * model_config['optimizer']['learning_rate']:
+                            # Anneal the learning rate if no improvement has been seen in the validation dataset.
+                            print('cutting learning rate from %.5f to %.5f' % (learning_rate, learning_rate * model_config['optimizer']['learning_rate_decay_ratio']))
+                            learning_rate *= model_config['optimizer']['learning_rate_decay_ratio']
+                            for param_group in optimizer.param_groups:
+                                param_group['lr'] = learning_rate
+                        else:
+                            print('learning rate %.5f reached lower bound' % (learning_rate))
+                    be_patient += 1
 
     # At any point you can hit Ctrl + C to break out of training early.
     except KeyboardInterrupt:

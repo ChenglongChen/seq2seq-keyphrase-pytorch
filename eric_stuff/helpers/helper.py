@@ -306,6 +306,7 @@ def add_char_level_inputs(input_batch=None, id2word=None, char2id=None, oov_dict
     char_matrix = np.zeros((input_batch.shape[0], input_batch.shape[1], max_char_in_word), dtype='int32')
     for i in range(input_batch.shape[0]):
         for j in range(input_batch.shape[1]):
+            # it's <pad>
             if input_batch[i][j] == 0:
                 continue
             # it's actual word
