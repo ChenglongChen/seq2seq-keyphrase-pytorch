@@ -10,7 +10,7 @@ from tqdm import tqdm
 from helpers.datasets import load_dataset
 from helpers.helper import print_data_samples, torch_model_summarize, random_generator, trim, generator_queue
 from helpers.model import CascadingGenerator, StandardNLL
-from helpers.evaluation import eval_teacher_forcing
+from helpers.evaluation import eval_teacher_forcing, eval_free_running
 
 wait_time = 0.01  # in seconds
 
@@ -88,6 +88,9 @@ def train_teacher_forcing(model_config):
                                                  number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
                                                  criterion=criterion)
         print("In teacher forcing evaluation, loss=%.5f, ppl=%.5f" % (val_loss, val_ppl))
+        val_f1 = eval_free_running(_model=_model, data=free_running_valid_data, batch_size=valid_batch_size, id2word=id2word, char2id=char2id, enable_cuda=enable_cuda)
+        print("In free running evaluation, f1 score=%.5f" % (val_f1))
+
     except:
         pass
 
