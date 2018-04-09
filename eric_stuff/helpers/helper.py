@@ -177,15 +177,25 @@ def pad_sequences_of_sequences(sequences, pad=0.):
     return A
 
 
+def add_bos_eos_tokens(batch, bos_id=1, eos_id=2):
+    batch = [np.trim_zeros(item, 'b').tolist() for item in batch]
+    with_bos = [[bos_id] + item for item in batch]
+    with_eos = [item + [eos_id] for item in batch]
+    with_bos = pad_sequences(with_bos, padding='post').astype('int32')
+    with_eos = pad_sequences(with_eos, padding='post').astype('int32')
+    return with_bos, with_eos
+
+
 def trim_batch(batch, trim_margin=None):
     # for post padding
     # batch.shape: N * n_words
     if trim_margin is None:
-
         batch_temp = batch[:, ::-1]
         batch_temp = np.cumsum(batch_temp, axis=1)
         batch_temp = batch_temp[:, ::-1]
         zero = batch_temp == 0
+        if np.sum(zero) == 0:
+            return batch, batch.shape[1]
         z_index = np.argmax(zero, axis=1)
         trim_margin = np.max(z_index)
     return batch[:, :trim_margin + 1], trim_margin
@@ -194,11 +204,8 @@ def trim_batch(batch, trim_margin=None):
 def trim(batch_dict):
     batch_dict['input_source'], _ = trim_batch(batch_dict['input_source'])
     batch_dict['input_prev_target'], _ = trim_batch(batch_dict['input_prev_target'])
-    target = batch_dict['input_target']
-    batch_dict['input_target'], _ = trim_batch(np.concatenate([np.ones((target.shape[0], 1), dtype='int32') * 1, target], axis=1))  # <s> + target
-    batch_dict['output_target'], _ = trim_batch(np.concatenate([target, np.ones((target.shape[0], 1), dtype='int32') * 2], axis=1))  # target + </s>
+    batch_dict['input_target'], batch_dict['output_target'] = add_bos_eos_tokens(batch_dict['input_target'])  # <s> + target, target + </s>
     batch_dict['output_target_mask'] = (batch_dict['output_target'] > 0).astype('int32')
-
     return batch_dict
 
 
