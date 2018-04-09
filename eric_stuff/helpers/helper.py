@@ -196,7 +196,7 @@ def trim(batch_dict):
     batch_dict['input_prev_target'], _ = trim_batch(batch_dict['input_prev_target'])
     target = batch_dict['input_target']
     batch_dict['input_target'], _ = trim_batch(np.concatenate([np.ones((target.shape[0], 1), dtype='int32') * 1, target], axis=1))  # <s> + target
-    batch_dict['output_target'], _ = trim_batch(np.concatenate([np.ones((target.shape[0], 1), dtype='int32') * 2, target], axis=1))  # target + </s>
+    batch_dict['output_target'], _ = trim_batch(target, np.concatenate([np.ones((target.shape[0], 1), dtype='int32') * 2], axis=1))  # target + </s>
     batch_dict['output_target_mask'] = (batch_dict['output_target'] > 0).astype('int32')
 
     return batch_dict

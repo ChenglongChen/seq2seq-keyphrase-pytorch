@@ -76,11 +76,11 @@ def sample_or_argmax(inputs, _model,
             c = c[:idx]
         else:
             res_mask[i, :] = 1.0
-        if len(c) > longest:
-            longest = len(c)
+        if len(c) + 1 > longest:
+            longest = len(c) + 1
         res_list.append(c)
-    chosen_probs = chosen_probs[:, :longest]
-    res_mask = res_mask[:, :longest]
+    chosen_probs = chosen_probs[:, :longest + 1]
+    res_mask = res_mask[:, :longest + 1]
     res_mask = to_pt(res_mask, enable_cuda=enable_cuda, type="float")
     return res_list, chosen_probs, res_mask
 
