@@ -120,7 +120,7 @@ def sample_a_batch(_model, source, source_char, local_dict, id2word, char2id,
                 if wid < len(id2word):
                     word_string.append(id2word[wid])
                 else:
-                    word_string.append(local_id2word[wid])
+                    word_string.append(local_id2word[j][wid])
             word_string = " ".join(word_string)
             res_word_strings[j].append(word_string)
     return res_word_ids, res_word_strings
