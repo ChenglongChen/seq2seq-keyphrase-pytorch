@@ -2,6 +2,20 @@
 import torch
 import numpy as np
 from helpers.helper import pad_sequences, to_pt, max_len, add_char_level_inputs
+from helpers.layers import mask_distributions
+
+
+def build_local_mask(id2word):
+    # for the moment I hard coded the vocab size to be 50k + 1k
+    vocab_size = 50000
+    local_vocab_size = 1000
+    batch_size = len(id2word)
+    mask = np.zeros((batch_size, vocab_size + local_vocab_size), dtype='float32')
+    mask[:, :vocab_size] = 1.0
+    for i, local_vocab in enumerate(id2word):
+        for wid in local_vocab:
+            mask[i, wid] = 1
+    return mask
 
 
 def sample_or_argmax(inputs, _model,
@@ -12,6 +26,8 @@ def sample_or_argmax(inputs, _model,
     chosen, chosen_probs = [], []
     source, history, source_char, history_char, local_dict = inputs
     local_id2word = [{v: k for k, v in d.items()} for d in local_dict]
+    local_mask = build_local_mask(local_id2word)
+    local_mask = to_pt(local_mask, enable_cuda=enable_cuda, type='float')  # batch x vocab_size
     batch_size = source.size(0)
     # use get_history_info() to get encode previously generated stuff
     history_info = _model.get_history_info(history, history_char)
@@ -34,6 +50,7 @@ def sample_or_argmax(inputs, _model,
         pred = p_target_vocab
         for p in p_positions_mapped:
             pred = pred + p
+        pred = mask_distributions(pred, local_mask)
         pred_cpu = pred.cpu().data.numpy()  # batch size x vocab_size
 
         if sample:
