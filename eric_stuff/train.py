@@ -84,7 +84,7 @@ def train_teacher_forcing(model_config):
         _model = torch.load(save_f)
         print("loading best model------------------------------------------------------------------\n")
         # eval on valid set
-        val_loss, val_ppl = eval_teacher_forcing(model=_model, batch_generator=valid_batch_generator,
+        val_loss, val_ppl = eval_teacher_forcing(_model=_model, batch_generator=valid_batch_generator,
                                                  number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
                                                  criterion=criterion)
         print("In teacher forcing evaluation, loss=%.5f, ppl=%.5f" % (val_loss, val_ppl))
@@ -138,7 +138,7 @@ def train_teacher_forcing(model_config):
                     pbar.update(1)
 
             # eval on valid set
-            val_loss, val_ppl = eval_teacher_forcing(model=_model, batch_generator=valid_batch_generator,
+            val_loss, val_ppl = eval_teacher_forcing(_model=_model, batch_generator=valid_batch_generator,
                                                      number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
                                                      criterion=criterion)
             # soft_val_f1, hard_val_f1 = evaluate_free_running(model=_model, data_generator=valid_batch_generator, data_size=valid_data['input_description'].shape[0],
@@ -146,7 +146,7 @@ def train_teacher_forcing(model_config):
             print("epoch=%d, in teacher forcing evaluation, loss=%.5f, ppl=%.5f" % (epoch, val_loss, val_ppl))
             # Save the model if the validation loss is the best we've seen so far.
             if not best_val_ppl or val_ppl < best_val_ppl:
-                with open(model_config['dataset']['model_save_path'], 'wb') as save_f:
+                with open(model_config['scheduling']['model_checkpoint_path'], 'wb') as save_f:
                     torch.save(_model, save_f)
                 best_val_ppl = val_ppl
                 be_patient = 0
