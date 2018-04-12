@@ -72,6 +72,7 @@ class HardF1Reward(RewardCalculationRuntime):
             generated_local_id_list.append(local_str2id[g])
         ground_truth_local_id_list = []
         for g in ground_truth_list:
+            g = np.trim_zeros(g, 'b')
             g = "___".join([str(word_id) for word_id in g])
             if g not in local_str2id:
                 local_str2id[g] = len(local_id2str)
