@@ -14,31 +14,26 @@ class RewardCalculationRuntime(object):
         raise NotImplementedError
 
 
-# class DuplicationReward(RewardCalculationRuntime):
-#     # find duplicate actions, assign 0 rewards for duplications
-#     # returned vector should be same shape as input (list of token indices)
+class DuplicationReward(RewardCalculationRuntime):
+    # find duplicate key phrases, assign minus rewards for duplications
+    # returned vector should be same shape as input
 
-#     def get_reward(self, generated_actions, prev_actions):
-#         # lol
-#         if len(generated_actions) == 1 and generated_actions[0] <= 4:
-#             return [-1.0]
-#         # add "--|--" before head, and remove "--EOS--" at tail
-#         remove_last_token = True if generated_actions[-1] == 2 else False
-#         if remove_last_token:
-#             generated_actions = generated_actions[:-1]
-
-#         prev_actions = [4] + prev_actions
-#         prev_actions = self.group(prev_actions, 4)
-#         dup_set = set()
-#         for a in prev_actions:
-#             dup_set.add(str(a))
-#         if str(generated_actions) in dup_set:
-#             res = [-1.0 for _ in generated_actions]
-#         else:
-#             res = [0.0 for _ in generated_actions]
-#         if remove_last_token:
-#             res += [0.0]
-#         return res
+    def get_reward(self, generated_list):
+        # lol
+        if len(generated_list) == 0:
+            return [0.0]
+        if len(generated_list) == 1:
+            return [1.0]
+        cache = set()
+        res = []
+        for g in generated_list:
+            g = "___".join([str(word_id) for word_id in g])
+            if g in cache:
+                res.append(-1.0)
+            else:
+                res.append(1.0)
+                cache.add(g)
+        return res
 
 
 class HardF1Reward(RewardCalculationRuntime):
