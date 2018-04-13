@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from helpers.datasets import load_dataset
 from helpers.helper import print_data_samples, torch_model_summarize, random_generator, trim, generator_queue
-from helpers.model import CascadingGenerator, StandardNLL
+from helpers.model import CascadingGenerator, StandardNLL, DataParallel
 from helpers.evaluation import eval_teacher_forcing, eval_free_running
 
 wait_time = 0.01  # in seconds
@@ -37,6 +37,7 @@ def train_teacher_forcing(model_config):
 
     # model
     _model = CascadingGenerator(model_config=model_config, word_vocab=id2word, char_vocab=id2char, word_vocab_oov_ext_size=1000, enable_cuda=enable_cuda)
+    para_model = DataParallel(_model, device_ids=[0, 1, 2, 3])
 
     if enable_cuda:
         _model.cuda()
@@ -84,11 +85,11 @@ def train_teacher_forcing(model_config):
         _model = torch.load(save_f)
         print("loading best model------------------------------------------------------------------\n")
         # eval on valid set
-        val_loss, val_ppl = eval_teacher_forcing(_model=_model, batch_generator=valid_batch_generator,
+        val_loss, val_ppl = eval_teacher_forcing(_model=para_model, batch_generator=valid_batch_generator,
                                                  number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
                                                  criterion=criterion)
         print("In teacher forcing evaluation, loss=%.5f, ppl=%.5f" % (val_loss, val_ppl))
-        val_f1 = eval_free_running(_model=_model, data=free_running_valid_data, batch_size=valid_batch_size, id2word=id2word, char2id=char2id, enable_cuda=enable_cuda)
+        val_f1 = eval_free_running(_model=para_model, data=free_running_valid_data, batch_size=valid_batch_size, id2word=id2word, char2id=char2id, enable_cuda=enable_cuda)
         print("In free running evaluation, f1 score=%.5f" % (val_f1))
 
     except:
@@ -97,7 +98,7 @@ def train_teacher_forcing(model_config):
     try:
         for epoch in range(model_config['scheduling']['epoch']):
             # negative log likelihood learning
-            _model.train()
+            para_model.train()
             sum_loss = 0.0
             with tqdm(total=number_batch, leave=True, ncols=180, ascii=True) as pbar:
                 for i in range(number_batch):
@@ -112,10 +113,10 @@ def train_teacher_forcing(model_config):
                         output_target, output_target_mask, local_dict = generator_output
 
                     optimizer.zero_grad()
-                    _model.zero_grad()
+                    para_model.zero_grad()
 
-                    history_info = _model.get_history_info(input_prev_target, input_prev_target_char)
-                    p_positions_mapped, p_target_vocab, _, _ = _model.forward(input_source, input_target, input_source_char, input_target_char, history_info)
+                    history_info = para_model.get_history_info(input_prev_target, input_prev_target_char)
+                    p_positions_mapped, p_target_vocab, _, _ = para_model.forward(input_source, input_target, input_source_char, input_target_char, history_info)
 
                     preds = p_target_vocab
                     for p in p_positions_mapped:
@@ -125,7 +126,7 @@ def train_teacher_forcing(model_config):
                     loss = torch.mean(loss)  # 1
                     loss.backward()
                     # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-                    torch.nn.utils.clip_grad_norm(_model.parameters(), model_config['optimizer']['clip_grad_norm'])
+                    torch.nn.utils.clip_grad_norm(para_model.parameters(), model_config['optimizer']['clip_grad_norm'])
                     optimizer.step()  # apply gradients
 
                     batch_loss = loss.cpu().data.numpy()
@@ -138,7 +139,7 @@ def train_teacher_forcing(model_config):
                     pbar.update(1)
 
             # eval on valid set
-            val_loss, val_ppl = eval_teacher_forcing(_model=_model, batch_generator=valid_batch_generator,
+            val_loss, val_ppl = eval_teacher_forcing(_model=para_model, batch_generator=valid_batch_generator,
                                                      number_batch=(teacher_forcing_valid_data['input_source'].shape[0] + valid_batch_size - 1) // valid_batch_size,
                                                      criterion=criterion)
             # soft_val_f1, hard_val_f1 = evaluate_free_running(model=_model, data_generator=valid_batch_generator, data_size=valid_data['input_description'].shape[0],
@@ -147,7 +148,7 @@ def train_teacher_forcing(model_config):
             # Save the model if the validation loss is the best we've seen so far.
             if not best_val_ppl or val_ppl < best_val_ppl:
                 with open(model_config['scheduling']['model_checkpoint_path'], 'wb') as save_f:
-                    torch.save(_model, save_f)
+                    torch.save(para_model, save_f)
                 best_val_ppl = val_ppl
                 be_patient = 0
             else:
