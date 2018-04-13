@@ -115,7 +115,7 @@ def make_free_running_data(data_list):
 def load_dataset(path):
     # read vocab, train/valid/test set
     word2id, id2word, _ = torch.load(path + ".vocab.pt", 'wb')
-    train = torch.load(path + ".train.one2many.pt", 'wb')
+    train = torch.load(path + ".valid.one2many.pt", 'wb')
     valid = torch.load(path + ".valid.one2many.pt", 'wb')
     test = torch.load(path + ".test.one2many.pt", 'wb')
     # use list instead of dictionary for id2word
