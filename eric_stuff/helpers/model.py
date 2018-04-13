@@ -1,11 +1,11 @@
 import logging
 import numpy as np
-
+import threading
 import torch
 
 from torch.nn.parallel.scatter_gather import scatter_kwargs, gather
 from torch.nn.parallel.replicate import replicate
-from torch.nn.parallel.parallel_apply import parallel_apply
+from torch.nn.parallel.parallel_apply import get_a_var
 
 from helpers.helper import to_pt
 from helpers.layers import Embedding, TimeDistributedEmbedding
@@ -374,7 +374,7 @@ class DataParallel(torch.nn.Module):
         if len(self.device_ids) == 1:
             return self.module(*inputs[0], **kwargs[0])
         replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
-        outputs = self.parallel_apply(replicas, inputs, kwargs)
+        outputs = self.parallel_apply(replicas, inputs, kwargs, func="forward")
         return self.gather(outputs, self.output_device)
 
     def get_history_info(self, *inputs, **kwargs):
@@ -384,7 +384,7 @@ class DataParallel(torch.nn.Module):
         if len(self.device_ids) == 1:
             return self.module.get_history_info(*inputs[0], **kwargs[0])
         replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
-        outputs = self.parallel_apply(replicas, inputs, kwargs)
+        outputs = self.parallel_apply(replicas, inputs, kwargs, func="get_history_info")
         return self.gather(outputs, self.output_device)
 
     def f_init(self, *inputs, **kwargs):
@@ -394,7 +394,7 @@ class DataParallel(torch.nn.Module):
         if len(self.device_ids) == 1:
             return self.module.f_init(*inputs[0], **kwargs[0])
         replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
-        outputs = self.parallel_apply(replicas, inputs, kwargs)
+        outputs = self.parallel_apply(replicas, inputs, kwargs, func="f_init")
         return self.gather(outputs, self.output_device)
 
     def f_next(self, *inputs, **kwargs):
@@ -404,7 +404,7 @@ class DataParallel(torch.nn.Module):
         if len(self.device_ids) == 1:
             return self.module.f_next(*inputs[0], **kwargs[0])
         replicas = self.replicate(self.module, self.device_ids[:len(inputs)])
-        outputs = self.parallel_apply(replicas, inputs, kwargs)
+        outputs = self.parallel_apply(replicas, inputs, kwargs, func="f_next")
         return self.gather(outputs, self.output_device)
 
     def replicate(self, module, device_ids):
@@ -413,8 +413,66 @@ class DataParallel(torch.nn.Module):
     def scatter(self, inputs, kwargs, device_ids):
         return scatter_kwargs(inputs, kwargs, device_ids, dim=self.dim)
 
-    def parallel_apply(self, replicas, inputs, kwargs):
-        return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)])
+    def parallel_apply(self, replicas, inputs, kwargs, func):
+        return parallel_apply(replicas, inputs, kwargs, self.device_ids[:len(replicas)], func)
 
     def gather(self, outputs, output_device):
         return gather(outputs, output_device, dim=self.dim)
+
+
+def parallel_apply(modules, inputs, kwargs_tup=None, devices=None, func="forward"):
+    assert len(modules) == len(inputs)
+    if kwargs_tup is not None:
+        assert len(modules) == len(kwargs_tup)
+    else:
+        kwargs_tup = ({},) * len(modules)
+    if devices is not None:
+        assert len(modules) == len(devices)
+    else:
+        devices = [None] * len(modules)
+
+    lock = threading.Lock()
+    results = {}
+    grad_enabled = torch.is_grad_enabled()
+
+    def _worker(i, module, input, kwargs, device=None):
+        torch.set_grad_enabled(grad_enabled)
+        if device is None:
+            device = get_a_var(input).get_device()
+        try:
+            with torch.cuda.device(device):
+                if func == "forward":
+                    output = module(*input, **kwargs)
+                elif func == "get_history_info":
+                    output = module.get_history_info(*input, **kwargs)
+                elif func == "f_init":
+                    output = module.f_init(*input, **kwargs)
+                elif func == "f_next":
+                    output = module.f_next(*input, **kwargs)
+
+            with lock:
+                results[i] = output
+        except Exception as e:
+            with lock:
+                results[i] = e
+
+    if len(modules) > 1:
+        threads = [threading.Thread(target=_worker,
+                                    args=(i, module, input, kwargs, device))
+                   for i, (module, input, kwargs, device) in
+                   enumerate(zip(modules, inputs, kwargs_tup, devices))]
+
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+    else:
+        _worker(0, modules[0], inputs[0], kwargs_tup[0], devices[0])
+
+    outputs = []
+    for i in range(len(inputs)):
+        output = results[i]
+        if isinstance(output, Exception):
+            raise output
+        outputs.append(output)
+    return outputs
