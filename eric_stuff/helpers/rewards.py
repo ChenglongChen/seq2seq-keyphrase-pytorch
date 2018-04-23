@@ -75,7 +75,8 @@ class HardF1Reward(RewardCalculationRuntime):
                 local_str2id[g] = len(local_id2str)
                 local_id2str.append(g)
             ground_truth_local_id_list.append(local_str2id[g])
-
+        generated_local_id_list = list(set(generated_local_id_list))
+        ground_truth_local_id_list = list(set(ground_truth_local_id_list))
         score = self.f1_score(generated_local_id_list, ground_truth_local_id_list)
         return score
 

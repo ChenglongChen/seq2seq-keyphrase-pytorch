@@ -1,6 +1,7 @@
 import time
 import torch
 import math
+from tqdm import tqdm
 import numpy as np
 from helpers.helper import generator_queue, pad_sequences, add_char_level_inputs
 from helpers.rewards import HardF1Reward
@@ -12,7 +13,7 @@ def eval_teacher_forcing(_model, batch_generator, number_batch, criterion):
     _model.eval()
     data_queue, _ = generator_queue(batch_generator, max_q_size=20)
     sum_loss = 0.0
-    for i in range(number_batch):
+    for i in tqdm(range(number_batch)):
         generator_output = None
         while True:
             if not data_queue.empty():
@@ -49,7 +50,7 @@ def eval_free_running(_model, data, batch_size, id2word, char2id, enable_cuda=Fa
     f_score = []
     f_func = HardF1Reward()
 
-    for i in range(number_batch):
+    for i in tqdm(range(number_batch)):
         input_source = data["input_source"][i * batch_size: (i + 1) * batch_size]
         output_target = data["output_target"][i * batch_size: (i + 1) * batch_size]
         local_dict = data["local_oov_dict"][i * batch_size: (i + 1) * batch_size]
