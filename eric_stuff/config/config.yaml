@@ -30,24 +30,24 @@ kp_generator:
 
   embedding:
     word_level:
-      path: 'None' # no path because not using pretrained embeddings
-      embedding_size: 100
-      embedding_type: 'random'  # pretrained, random
+      path: '/home/eryua/fasttext-crawl-300d-2M.vec.h5' # no path because not using pretrained embeddings
+      embedding_size: 300
+      embedding_type: 'pretrained'  # pretrained, random
       embedding_trainable: True  # fix pretrained embedding
-      embedding_dropout: 0.
-      embedding_oov_init: 'random'  # zero, one, random, when certain tokens not in pretrained embedding vocabs
+      embedding_dropout: 0.3
+      embedding_oov_init: 'zero'  # zero, one, random, when certain tokens not in pretrained embedding vocabs
 
     char_level:
       embedding_size: 64
       embedding_rnn_size: [64]  # 32 on each direction
       embedding_trainable: True
-      embedding_dropout: 0.
+      embedding_dropout: 0.3
 
   kp_generator:
-    encoder_rnn_hidden_size: [256]  # 128 on each direction, use an empty list to disable preproc_rnn, if you want..
-    decoder_rnn_hidden_size: 128  # uni directional rnn
-    decoder_init_states_generator_hidden_size: [128]
-    decoder_vocab_generator_hidden_size: 128
-    decoder_rnn_attention_size: 128
-    pointer_softmax_hidden_size: 128
-    history_info_integrator_hidden_size: [128]
+    encoder_rnn_hidden_size: [256, 256]  # 128 on each direction, use an empty list to disable preproc_rnn, if you want..
+    decoder_rnn_hidden_size: 384  # uni directional rnn
+    decoder_init_states_generator_hidden_size: [256]
+    decoder_vocab_generator_hidden_size: 384
+    decoder_rnn_attention_size: 384
+    pointer_softmax_hidden_size: 384
+    history_info_integrator_hidden_size: [256]
