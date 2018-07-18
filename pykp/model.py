@@ -300,7 +300,7 @@ class Seq2SeqLSTMAttention(nn.Module):
                 self.copy_mode = self.attention_mode
             assert self.copy_mode != None
             assert self.unk_word  != None
-            logging.info("Applying Copy Mechanism, type=%s" % self.copy_mode)
+            # logging.info("Applying Copy Mechanism, type=%s" % self.copy_mode)
             # for Gu's model
             self.copy_attention_layer = Attention(self.src_hidden_dim * self.num_directions, self.trg_hidden_dim, method=self.copy_mode)
             # for See's model
@@ -313,10 +313,10 @@ class Seq2SeqLSTMAttention(nn.Module):
         # setup for input-feeding, add a bridge to compress the additional inputs. Note that input-feeding cannot work with teacher-forcing
         self.dec_input_dim          = self.emb_dim # only input the previous word
         if self.input_feeding:
-            logging.info("Applying input feeding")
+            # logging.info("Applying input feeding")
             self.dec_input_dim      += self.trg_hidden_dim
         if self.copy_input_feeding:
-            logging.info("Applying copy input feeding")
+            # logging.info("Applying copy input feeding")
             self.dec_input_dim      += self.trg_hidden_dim
         if self.dec_input_dim == self.emb_dim:
             self.dec_input_bridge   =  None
@@ -689,13 +689,13 @@ class Seq2SeqLSTMAttention(nn.Module):
 
         # flip a coin
         coin = random.random()
-        logging.info('coin = %f, tf_ratio = %f' % (coin, teacher_forcing_ratio))
+        # logging.info('coin = %f, tf_ratio = %f' % (coin, teacher_forcing_ratio))
 
         do_tf = coin < teacher_forcing_ratio
-        if do_tf:
-            logging.info("Training batches with Teacher Forcing")
-        else:
-            logging.info("Training batches with All Sampling")
+        # if do_tf:
+        #     logging.info("Training batches with Teacher Forcing")
+        # else:
+        #     logging.info("Training batches with All Sampling")
 
         return do_tf
 

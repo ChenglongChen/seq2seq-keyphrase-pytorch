@@ -125,16 +125,16 @@ def train_ml(one2one_batch, model, optimizer, criterion, opt):
             trg_copy_target.contiguous().view(-1)
         )
     loss = loss * (1 - opt.loss_scale)
-    print("--loss calculation- %s seconds ---" % (time.time() - start_time))
+    # print("--loss calculation- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
     loss.backward()
-    print("--backward- %s seconds ---" % (time.time() - start_time))
+    # print("--backward- %s seconds ---" % (time.time() - start_time))
 
     if opt.max_grad_norm > 0:
         pre_norm = torch.nn.utils.clip_grad_norm(model.parameters(), opt.max_grad_norm)
         after_norm = (sum([p.grad.data.norm(2) ** 2 for p in model.parameters() if p.grad is not None])) ** (1.0 / 2)
-        logging.info('clip grad (%f -> %f)' % (pre_norm, after_norm))
+        # logging.info('clip grad (%f -> %f)' % (pre_norm, after_norm))
 
     optimizer.step()
 
@@ -205,7 +205,7 @@ def train_rl(one2many_batch, model, optimizer, generator, opt):
     if opt.max_grad_norm > 0:
         pre_norm = torch.nn.utils.clip_grad_norm(model.parameters(), opt.max_grad_norm)
         after_norm = (sum([p.grad.data.norm(2) ** 2 for p in model.parameters() if p.grad is not None])) ** (1.0 / 2)
-        logging.info('clip grad (%f -> %f)' % (pre_norm, after_norm))
+        # logging.info('clip grad (%f -> %f)' % (pre_norm, after_norm))
 
     optimizer.step()
 
@@ -327,6 +327,7 @@ def train_model(model, optimizer_ml, optimizer_rl, criterion, train_data_loader,
             # Training
             if opt.train_ml:
                 loss_ml, decoder_log_probs = train_ml(one2one_batch, model, optimizer_ml, criterion, opt)
+                loss_ml = loss_ml.cpu().data.numpy()
                 train_ml_losses.append(loss_ml)
                 report_loss.append(('train_ml_loss', loss_ml))
                 report_loss.append(('PPL', loss_ml))

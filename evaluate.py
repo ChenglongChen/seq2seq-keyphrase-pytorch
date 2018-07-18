@@ -42,7 +42,9 @@ def process_predseqs(pred_seqs, oov, id2word, opt):
         #         print('ERROR')
 
         # convert to words and remove the EOS token
-        processed_seq      = [id2word[x] if x < opt.vocab_size else oov[x - opt.vocab_size] for x in seq.sentence[:-1]]
+        # processed_seq      = [id2word[x] if x < opt.vocab_size else oov[x - opt.vocab_size] for x in seq.sentence[:-1]]
+        seq_sentence_np = [int(x.cpu().data.numpy()) for x in seq.sentence]
+        processed_seq      = [id2word[x] if x < opt.vocab_size else oov[x - opt.vocab_size] for x in seq_sentence_np[:-1]]
         # print('processed_seq: ' + str(processed_seq))
 
         # print('%s - %s' % (str(seq.sentence[:-1]), str(processed_seq)))
@@ -144,7 +146,7 @@ def evaluate_beam_search(generator, data_loader, opt, title='', epoch=1, save_pa
             src_list = src_list.cuda()
             src_oov_map_list = src_oov_map_list.cuda()
 
-        print("batch size - %s" % str(src_list.size(0)))
+        # print("batch size - %s" % str(src_list.size(0)))
         # print("src size - %s" % str(src_list.size()))
         # print("target size - %s" % len(trg_copy_target_list))
 
@@ -154,7 +156,7 @@ def evaluate_beam_search(generator, data_loader, opt, title='', epoch=1, save_pa
         process each example in current batch
         '''
         for src, src_str, trg, trg_str_seqs, trg_copy, pred_seq, oov in zip(src_list, src_str_list, trg_list, trg_str_list, trg_copy_target_list, pred_seq_list, oov_list):
-            logging.info('======================  %d =========================' % (example_idx))
+            # logging.info('======================  %d =========================' % (example_idx))
             print_out = ''
             print_out += '[Source][%d]: %s \n' % (len(src_str), ' '.join(src_str))
             # src = src.cpu().data.numpy() if torch.cuda.is_available() else src.data.numpy()
@@ -238,7 +240,7 @@ def evaluate_beam_search(generator, data_loader, opt, title='', epoch=1, save_pa
 
                         print_out += '\t%s@%d#oneword=%d = %f\n' % (k, topk, num_oneword_seq, v)
 
-            logging.info(print_out)
+            # logging.info(print_out)
 
             if save_path:
                 if not os.path.exists(os.path.join(save_path, title+'_detail')):
