@@ -551,15 +551,15 @@ def build_vocab(tokenized_src_trgs_pairs, opt):
         del vocab['<unk>']
 
     word2id = {
-        '<s>': 0,
-        '<pad>': 1,
+        '<pad>': 0,
+        '<s>': 1,
         '</s>': 2,
         '<unk>': 3,
     }
 
     id2word = {
-        0: '<s>',
-        1: '<pad>',
+        0: '<pad>',
+        1: '<s>',
         2: '</s>',
         3: '<unk>',
     }
