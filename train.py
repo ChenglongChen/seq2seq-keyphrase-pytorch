@@ -35,6 +35,39 @@ from pykp.model import Seq2SeqLSTMAttention, Seq2SeqLSTMAttentionCascading
 
 import time
 
+
+class StandardNLL(torch.nn.modules.loss._Loss):
+    """
+    Shape:
+        log_prob:   batch x time x class
+        y_true:     batch x time
+        mask:       batch x time
+        output:     batch
+    """
+
+    def forward(self, log_prob, y_true, mask):
+        mask = mask.float()
+        log_P = torch.gather(log_prob.view(-1, log_prob.size(2)), 1, y_true.contiguous().view(-1, 1))  # batch*time x 1
+        log_P = log_P.view(y_true.size(0), y_true.size(1))  # batch x time
+        log_P = log_P * mask  # batch x time
+        sum_log_P = torch.sum(log_P, dim=1) / torch.sum(mask, dim=1)  # batch
+        return -sum_log_P
+
+
+class GetMask(torch.nn.Module):
+    '''
+    inputs: x:          any size
+    outputs:mask:       same size as input x
+    '''
+    def __init__(self, pad_idx=0):
+        super(GetMask, self).__init__()
+        self.pad_idx = pad_idx
+
+    def forward(self, x):
+        mask = torch.ne(x, self.pad_idx).float()
+        return mask
+
+
 def time_usage(func):
     # argnames = func.func_code.co_varnames[:func.func_code.co_argcount]
     fname = func.__name__
@@ -114,16 +147,24 @@ def train_ml(one2one_batch, model, optimizer, criterion, opt):
     # IMPORTANT, must use logits instead of probs to compute the loss, otherwise it's super super slow at the beginning (grads of probs are small)!
     start_time = time.time()
 
-    if not opt.copy_attention:
-        loss = criterion(
-            decoder_log_probs.contiguous().view(-1, opt.vocab_size),
-            trg_target.contiguous().view(-1)
-        )
+    if opt.loss_mask == 1:
+        trg_mask = GetMask()(trg)  # same size as trg
+        trg_mask = trg_mask[:, :-1]  # as in model.decode(), truncate the last word, as there's no further word after it for decoder to predict
+        groundtruth = trg_copy_target if opt.copy_attention else trg_target
+        groundtruth = groundtruth.contiguous()
+        loss_batch = criterion(decoder_log_probs, groundtruth, trg_mask)
+        loss = torch.mean(loss_batch)
     else:
-        loss = criterion(
-            decoder_log_probs.contiguous().view(-1, opt.vocab_size + max_oov_number),
-            trg_copy_target.contiguous().view(-1)
-        )
+        if not opt.copy_attention:
+            loss = criterion(
+                decoder_log_probs.contiguous().view(-1, opt.vocab_size),
+                trg_target.contiguous().view(-1)
+            )
+        else:
+            loss = criterion(
+                decoder_log_probs.contiguous().view(-1, opt.vocab_size + max_oov_number),
+                trg_copy_target.contiguous().view(-1)
+            )
     loss = loss * (1 - opt.loss_scale)
     # print("--loss calculation- %s seconds ---" % (time.time() - start_time))
 
@@ -507,7 +548,10 @@ def init_optimizer_criterion(model, opt):
     # optimizer = torch.optim.Adadelta(model.parameters(), lr=0.1)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=0.1)
     '''
-    criterion = torch.nn.NLLLoss(ignore_index=opt.word2id[pykp.io.PAD_WORD])
+    if opt.loss_mask == 0:
+        criterion = torch.nn.NLLLoss(ignore_index=opt.word2id[pykp.io.PAD_WORD])
+    else:
+        criterion = StandardNLL()
 
     if opt.train_ml:
         optimizer_ml = Adam(params=filter(lambda p: p.requires_grad, model.parameters()), lr=opt.learning_rate)
