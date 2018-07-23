@@ -155,6 +155,9 @@ class SequenceGenerator(object):
         self.return_attention = return_attention
         self.get_mask = GetMask()
 
+    def update_model(self, new_model):
+        self.model.load_state_dict(new_model.state_dict())
+
     def sequence_to_batch(self, sequence_lists):
         '''
         Convert K sequence objects into K batches for RNN
